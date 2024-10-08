@@ -50,13 +50,11 @@ def ur5_inverse_kinematics(x, y, z):
 
 
 
-def ur5_inverse_kinematics_with_orientation(x, y, z, rx, ry, rz):
+def ur5_inverse_kinematics_with_orientation(x, y, z, quaternion):
     # Paramètres du robot UR5 (en mètres)
     d1 = 0.089159
     a2 = -0.42500
     a3 = -0.39225
-    d4 = 0.10915
-    d5 = 0.09465
     d6 = 0.0823
 
     # Position de l'effecteur final
@@ -82,34 +80,24 @@ def ur5_inverse_kinematics_with_orientation(x, y, z, rx, ry, rz):
     cos_gamma = (a2**2 + a3**2 - B**2) / (2 * a2 * a3)
     gamma = np.arccos(np.clip(cos_gamma, -1.0, 1.0))
     theta3 = np.pi - gamma
-    # ... (Le reste de la fonction reste identique jusqu'au calcul de theta3)
 
-    # Calculer la matrice de rotation désirée à partir des angles d'Euler
-    Rx = np.array([[1, 0, 0],
-                   [0, np.cos(rx), -np.sin(rx)],
-                   [0, np.sin(rx), np.cos(rx)]])
+    # Calculate rotation from quaternion
+    qx, qy, qz, qw = quaternion
+    R_desired = np.array([
+        [1 - 2*qy*qy - 2*qz*qz, 2*qx*qy - 2*qz*qw, 2*qx*qz + 2*qy*qw],
+        [2*qx*qy + 2*qz*qw, 1 - 2*qx*qx - 2*qz*qz, 2*qy*qz - 2*qx*qw],
+        [2*qx*qz - 2*qy*qw, 2*qy*qz + 2*qx*qw, 1 - 2*qx*qx - 2*qy*qy]
+    ])
 
-    Ry = np.array([[np.cos(ry), 0, np.sin(ry)],
-                   [0, 1, 0],
-                   [-np.sin(ry), 0, np.cos(ry)]])
-
-    Rz = np.array([[np.cos(rz), -np.sin(rz), 0],
-                   [np.sin(rz), np.cos(rz), 0],
-                   [0, 0, 1]])
-
-    R_desired = Rz @ Ry @ Rx
-
-    # Calculer R03 (rotation des 3 premiers joints)
+    # Calculate joint angles for wrist
     R03 = np.array([
         [np.cos(theta1) * np.cos(theta2 + theta3), -np.cos(theta1) * np.sin(theta2 + theta3), np.sin(theta1)],
         [np.sin(theta1) * np.cos(theta2 + theta3), -np.sin(theta1) * np.sin(theta2 + theta3), -np.cos(theta1)],
         [np.sin(theta2 + theta3), np.cos(theta2 + theta3), 0]
     ])
 
-    # Calculer R36 (rotation des 3 derniers joints)
     R36 = R03.T @ R_desired
 
-    # Extraire theta4, theta5, theta6 de R36
     theta4 = np.arctan2(R36[1, 2], R36[0, 2])
     theta5 = np.arccos(R36[2, 2])
     theta6 = np.arctan2(-R36[2, 1], R36[2, 0])

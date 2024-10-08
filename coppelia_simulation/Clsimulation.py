@@ -7,7 +7,8 @@ from coppeliasim_zmqremoteapi_client import RemoteAPIClient
 import logging
 from geometry_msgs.msg import Point
 import numpy as np
-from ur5_kinematics import ur5_inverse_kinematics
+import random
+from ur5_kinematics import ur5_inverse_kinematics_with_orientation
 
 # Configuration du logging
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(message)s')
@@ -36,18 +37,40 @@ class MovementSubscriber(Node):
         self.robot_base = np.array([0.5, 0.3, 0.3])  # Ajustez ces valeurs selon votre configuration
 
     def listener_callback(self, msg):
-        # Convertir les coordonnées de la SandBox en coordonnées du monde
         world_coords = self.sandbox_to_world_coordinates(msg.x, msg.y, msg.z)
 
-        # Calculer les angles des joints en utilisant la cinématique inverse
-        joint_angles = ur5_inverse_kinematics(*world_coords)
+        # Simulate valid quaternion for now (can be randomized later)
+        quaternion = [0, 0, 0, 1]  # Neutral orientation
+
+        joint_angles = ur5_inverse_kinematics_with_orientation(*world_coords, quaternion)
 
         try:
-            # Appeler la fonction moveArm
+            # Move the robot to the target position
             result = self.sim.callScriptFunction('moveArm', self.script_handle, joint_angles)
             self.get_logger().info(f"Robot moved to position: ({msg.x}, {msg.y}, {msg.z}), result: {result}")
+
+            # Reset robot to initial position after the movement
+            self.reset_robot_position()
         except Exception as e:
             self.get_logger().error(f"Error during movement execution: {e}")
+
+    def reset_robot_position(self):
+        """Function to reset UR5 to its initial position"""
+        joint_handles = [
+            self.sim.getObject('/UR5/UR5_joint1'),
+            self.sim.getObject('/UR5/UR5_joint2'),
+            self.sim.getObject('/UR5/UR5_joint3'),
+            self.sim.getObject('/UR5/UR5_joint4'),
+            self.sim.getObject('/UR5/UR5_joint5'),
+            self.sim.getObject('/UR5/UR5_joint6')
+        ]
+
+        initial_positions = [0, 0, 0, 0, 0, 0]  # Set the exact initial joint angles
+        for joint, initial_position in zip(joint_handles, initial_positions):
+            self.sim.setJointTargetPosition(joint, initial_position)
+            time.sleep(0.5)  # Gradual reset
+
+        logger.info("Robot reset to initial position.")
 
     def sandbox_to_world_coordinates(self, x, y, z):
         # Convertir les coordonnées de la SandBox en coordonnées du monde
@@ -138,7 +161,7 @@ class CoppeliaSimulation:
         # Déplacer chaque joint à sa position cible
         for joint, target_position in zip(joint_handles, target_positions):
             self.sim.setJointTargetPosition(joint, target_position)
-            time.sleep(1)  # Attendre 1 seconde avant de passer au joint suivant
+            time.sleep(0.8)  # Attendre 1 seconde avant de passer au joint suivant
 
         # Ramener chaque joint à sa position initiale
         initial_positions = [0, 0, 0, 0, 0, 0]
