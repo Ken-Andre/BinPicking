@@ -3,41 +3,32 @@ from rclpy.node import Node
 from geometry_msgs.msg import Point
 import random
 
-
 class SandBoxPositionPublisher(Node):
     def __init__(self):
         super().__init__('sandbox_position_publisher')
         self.publisher_ = self.create_publisher(Point, 'sandbox_positions', 10)
         self.timer = self.create_timer(8, self.publish_position)
 
-        # Ensure correct boundaries within the box, avoiding out-of-bounds positions
-        self.sandbox_dimensions = [0.60, 1.05, 0.30]
-        self.positions_abcd_cubes = [
-            [0.05, 0.05, 0.1],  # Point A
-            [0.55, 0.05, 0.1],  # Point B
-            [0.55, 0.95, 0.1],  # Point C
-            [0.05, 0.95, 0.1],  # Point D
-            [0.3, 0.3, 0.1],  # Center
+        # List of cube positions
+        self.cube_positions = [
+            [-0.945, 0.470, 0.150],
+            [-0.945, 0.000, 0.150],
+            [-0.945, -0.470, 0.150],
+            [-0.700, -0.470, 0.150],
+            [-0.698, -0.025, 0.150],
+            [-0.700, 0.450, 0.150],
+            [-0.455, 0.470, 0.150],
+            [-0.470, -0.025, 0.150]
         ]
-
-        self.safe_workspace = {
-            'x_min': 0.1, 'x_max': 0.2,  # Set boundaries to stay inside the sandbox
-            'y_min': 0.1, 'y_max': 0.2,
-            'z_min': 0.1, 'z_max': 0.2
-        }
 
     def publish_position(self):
         msg = Point()
-        # Randomly select from the predefined points inside the sandbox
-        selected_position = random.choice(self.positions_abcd_cubes)
-        # msg.x, msg.y, msg.z = selected_position
-        msg.x = random.uniform(self.safe_workspace['x_min'], self.safe_workspace['x_max'])
-        msg.y = random.uniform(self.safe_workspace['y_min'], self.safe_workspace['y_max'])
-        msg.z = random.uniform(self.safe_workspace['z_min'], self.safe_workspace['z_max'])
+        # Randomly select a cube position
+        selected_position = random.choice(self.cube_positions)
+        msg.x, msg.y, msg.z = selected_position
 
         self.publisher_.publish(msg)
-        self.get_logger().info(f"Publishing: {msg.x}, {msg.y}, {msg.z}")
-
+        self.get_logger().info(f'Publishing: {msg.x}, {msg.y}, {msg.z}')
 
 def main(args=None):
     rclpy.init(args=args)

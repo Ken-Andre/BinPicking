@@ -7,7 +7,7 @@ from coppeliasim_zmqremoteapi_client import RemoteAPIClient
 import logging
 from geometry_msgs.msg import Point
 import numpy as np
-import random
+# import random
 from ur5_kinematics import ur5_inverse_kinematics_with_orientation
 
 # Configuration du logging
@@ -30,29 +30,30 @@ class MovementSubscriber(Node):
         self.subscription
 
         # Définir les limites de la SandBox
-        self.sandbox_min = np.array([0, 0, 0])
-        self.sandbox_max = np.array([1.05, 0.60, 0.30])
+        self.sandbox_min = np.array([0, 0, -0.2])
+        self.sandbox_max = np.array([1.05, 0.60, 0.35])
 
         # Définir la position de base du robot par rapport à la SandBox
         self.robot_base = np.array([0.5, 0.3, 0.3])  # Ajustez ces valeurs selon votre configuration
 
+
     def listener_callback(self, msg):
-        world_coords = self.sandbox_to_world_coordinates(msg.x, msg.y, msg.z)
+        # World coordinates
+        # world_coords = self.sandbox_to_world_coordinates(msg.x, msg.y, msg.z)
 
-        # Simulate valid quaternion for now (can be randomized later)
-        quaternion = [0, 0, 0, 1]  # Neutral orientation
+        # Orientation: Gripper facing down (rotation around Z-axis)
+        gripper_orientation = -np.pi / 4  # 90 degrees downward
 
-        joint_angles = ur5_inverse_kinematics_with_orientation(*world_coords, quaternion)
+        # Compute joint angles with the correct orientation
+        # joint_angles = ur5_inverse_kinematics_with_orientation(*world_coords, gripper_orientation)
 
         try:
-            # Move the robot to the target position
-            result = self.sim.callScriptFunction('moveArm', self.script_handle, joint_angles)
+            # result = self.sim.callScriptFunction('moveArm', self.script_handle, joint_angles)
+            result = self.sim.callScriptFunction('moveToPositionAndCreateDummy', self.script_handle, msg.x, msg.y, msg.z)
             self.get_logger().info(f"Robot moved to position: ({msg.x}, {msg.y}, {msg.z}), result: {result}")
-
-            # Reset robot to initial position after the movement
-            self.reset_robot_position()
         except Exception as e:
             self.get_logger().error(f"Error during movement execution: {e}")
+
 
     def reset_robot_position(self):
         """Function to reset UR5 to its initial position"""
@@ -118,11 +119,12 @@ class CoppeliaSimulation:
         self.manipulate_robot()
 
         # Prendre la valeur de i via un prompt utilisateur
-        user_input = int(input("Entrez une valeur pour i: "))
+        # user_input = int(input("Entrez une valeur pour i: "))
 
         # Appeler la fonction test_fx après le démarrage de la simulation
         if script_handle is not None:
-            self.call_test_fx(script_handle, user_input)
+            # self.call_test_fx(script_handle, user_input)
+            a = 0
 
         # Démarrer ROS2 pour écouter sur le topic des commandes de mouvement
         rclpy.init()
@@ -157,6 +159,7 @@ class CoppeliaSimulation:
 
         # Positions cibles pour chaque joint
         target_positions = [0.5, -0.5, 0.3, -0.3, 0.2, -0.2]
+        # target_positions = [np.pi/2, -np.pi/4, 0, np.pi/2, 3*np.pi/4, np.pi/2]
 
         # Déplacer chaque joint à sa position cible
         for joint, target_position in zip(joint_handles, target_positions):
